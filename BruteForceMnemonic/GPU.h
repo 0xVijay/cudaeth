@@ -34,3 +34,10 @@ extern __constant__ uint32_t dev_generate_path[];
 extern __constant__ uint32_t dev_num_childs[];
 extern __constant__ uint32_t dev_num_paths[];
 extern __constant__ int16_t dev_static_words_indices[];
+
+// New allowlist constants
+extern __constant__ uint32_t dev_use_allowlists[];
+extern __constant__ uint16_t dev_candidate_counts[12];
+extern __constant__ uint16_t dev_candidate_indices[12][128]; // MAX_PER_POS = 128
+extern __constant__ uint32_t dev_single_target_mode[];
+extern __constant__ uint8_t dev_target_address[20];

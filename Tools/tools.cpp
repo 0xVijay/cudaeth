@@ -300,4 +300,121 @@ namespace tools {
 
 		return 0;
 	}
+
+	int hexStringToBytes(const std::string& hex, uint8_t* bytes, size_t len) {
+		if (hex.length() != len * 2 + 2) { // +2 for "0x" prefix
+			return -1;
+		}
+		if (hex.substr(0, 2) != "0x") {
+			return -1;
+		}
+		
+		for (size_t i = 0; i < len; i++) {
+			std::string byteStr = hex.substr(2 + i * 2, 2);
+			bytes[i] = (uint8_t)strtol(byteStr.c_str(), nullptr, 16);
+		}
+		return 0;
+	}
+
+	int validateAndProcessWordConstraints(ConfigClass* config) {
+		// Validate new mode requirements
+		if (config->mnemonic_length != 12) {
+			std::cerr << "Error: Only mnemonic_length = 12 is supported in this phase" << std::endl;
+			return -1;
+		}
+		
+		if (!config->ethereum.derivation_path.empty() && 
+			config->ethereum.derivation_path != "m/44'/60'/0'/0/2") {
+			std::cerr << "Error: Only derivation path m/44'/60'/0'/0/2 is supported in phase 1" << std::endl;
+			return -1;
+		}
+		
+		// Check if we have word constraints
+		if (config->word_constraints.empty()) {
+			config->use_allowlists = false;
+			return 0;
+		}
+		
+		// Validate word constraints cover all 12 positions
+		bool positions_covered[12] = { false };
+		for (const auto& constraint : config->word_constraints) {
+			if (constraint.position < 0 || constraint.position >= 12) {
+				std::cerr << "Error: Invalid position " << constraint.position 
+						 << " in word_constraints (must be 0-11)" << std::endl;
+				return -1;
+			}
+			if (constraint.words.empty()) {
+				std::cerr << "Error: Position " << constraint.position 
+						 << " has no allowed words" << std::endl;
+				return -1;
+			}
+			positions_covered[constraint.position] = true;
+		}
+		
+		for (int i = 0; i < 12; i++) {
+			if (!positions_covered[i]) {
+				std::cerr << "Error: Position " << i << " not covered in word_constraints" << std::endl;
+				return -1;
+			}
+		}
+		
+		// Build candidate arrays
+		for (const auto& constraint : config->word_constraints) {
+			int pos = constraint.position;
+			config->candidate_counts[pos] = 0;
+			
+			for (const auto& word : constraint.words) {
+				if (config->candidate_counts[pos] >= MAX_PER_POS) {
+					std::cerr << "Error: Too many words for position " << pos 
+							 << " (max " << MAX_PER_POS << ")" << std::endl;
+					return -1;
+				}
+				
+				// Find word in mnemonic_words table
+				bool found = false;
+				for (int ii = 0; ii < 2048; ii++) {
+					if (strcmp(word.c_str(), (const char*)mnemonic_words[ii]) == 0) {
+						config->candidate_indices[pos][config->candidate_counts[pos]] = ii;
+						config->candidate_counts[pos]++;
+						found = true;
+						break;
+					}
+				}
+				
+				if (!found) {
+					std::cerr << "Error: Unknown word '" << word << "' at position " << pos << std::endl;
+					return -1;
+				}
+			}
+		}
+		
+		// Compute total combinations (first 11 positions only)
+		config->total_combinations = 1;
+		for (int i = 0; i < 11; i++) {
+			config->total_combinations *= config->candidate_counts[i];
+		}
+		
+		// Update number_of_generated_mnemonics for GPU scheduling
+		uint64_t block_size = config->cuda_block * config->cuda_grid;
+		config->number_of_generated_mnemonics = ((config->total_combinations + block_size - 1) / block_size) * block_size;
+		
+		// Parse target address if present
+		if (!config->ethereum.target_address.empty()) {
+			if (hexStringToBytes(config->ethereum.target_address, config->target_address_bytes, 20) != 0) {
+				std::cerr << "Error: Invalid target_address format (expected 0x + 40 hex chars)" << std::endl;
+				return -1;
+			}
+			config->single_target_mode = true;
+		}
+		
+		config->use_allowlists = true;
+		
+		std::cout << "Allowlist mode enabled: " << config->total_combinations 
+				  << " combinations across first 11 positions" << std::endl;
+		if (config->single_target_mode) {
+			std::cout << "Single target mode enabled for address: " << config->ethereum.target_address << std::endl;
+		}
+		
+		return 0;
+	}
 }

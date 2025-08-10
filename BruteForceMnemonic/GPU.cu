@@ -2813,102 +2813,187 @@ __constant__ uint32_t dev_num_paths[1];
 __constant__ uint32_t dev_num_childs[1];
 __constant__ int16_t dev_static_words_indices[12];
 
+// New allowlist constants
+__constant__ uint32_t dev_use_allowlists[1];
+__constant__ uint16_t dev_candidate_counts[12];
+__constant__ uint16_t dev_candidate_indices[12][128]; // MAX_PER_POS = 128
+__constant__ uint32_t dev_single_target_mode[1];
+__constant__ uint8_t dev_target_address[20];
+
 __device__
 void entropy_to_mnemonic(const uint64_t* gl_entropy, uint8_t* mnemonic_phrase) {
 	int16_t indices[12] = { -1, -1, -1 , -1 , -1 , -1 , -1 , -1 , -1 , -1 , -1 , -1 };
 	uint32_t idx = blockIdx.x * blockDim.x + threadIdx.x;
-	uint64_t entropy[2];
-	if (idx < NUM_ENTROPY_FRAME) {
-		entropy[0] = gl_entropy[0 + idx * 2];
-		entropy[1] = gl_entropy[1 + idx * 2];
-	}
-	else
-	{
-		entropy[0] = gl_entropy[0 + (idx % NUM_ENTROPY_FRAME) * 2];
-		entropy[1] = gl_entropy[1 + (idx % NUM_ENTROPY_FRAME) * 2];
-	}
-
-	entropy[1] += idx;
-	if (idx > entropy[1]) entropy[0]++;
-
-	for (int i = 0; i < 12; i++) if (dev_static_words_indices[i] != -1) indices[i] = dev_static_words_indices[i];
-	for (int i = 11, pos = 11; i >= 0; i--)
-	{
-		if (indices[i] == -1)
-		{
-			int16_t ind = 0;
-			switch (pos)
-			{
-			case 0: indices[i] = (entropy[0] >> 53) & 2047; break;
-			case 1: indices[i] = (entropy[0] >> 42) & 2047; break;
-			case 2: indices[i] = (entropy[0] >> 31) & 2047; break;
-			case 3: indices[i] = (entropy[0] >> 20) & 2047; break;
-			case 4: indices[i] = (entropy[0] >> 9) & 2047; break;
-			case 5: indices[i] = ((entropy[0] & ((1 << 9) - 1)) << 2) | ((entropy[1] >> 62) & 3); break;
-			case 6: indices[i] = (entropy[1] >> 51) & 2047; break;
-			case 7: indices[i] = (entropy[1] >> 40) & 2047; break;
-			case 8: indices[i] = (entropy[1] >> 29) & 2047; break;
-			case 9: indices[i] = (entropy[1] >> 18) & 2047; break;
-			case 10: indices[i] = (entropy[1] >> 7) & 2047; break;
-			case 11: indices[i] = ((entropy[1] & ((1 << 7) - 1)) << 4);
-
+	
+	if (dev_use_allowlists[0]) {
+		// New allowlist enumeration mode
+		uint64_t linear_idx = idx;
+		
+		// Mixed-radix conversion for first 11 positions
+		for (int i = 0; i < 11; i++) {
+			uint16_t count = dev_candidate_counts[i];
+			uint32_t digit = linear_idx % count;
+			linear_idx = linear_idx / count;
+			indices[i] = dev_candidate_indices[i][digit];
+		}
+		
+		// Compute checksum for 12th word
+		uint64_t entropy[2] = {0, 0};
+		for (int i = 0; i < 11; i++) {
+			uint64_t temp = indices[i];
+			switch (i) {
+			case 0: entropy[0] |= temp << 53; break;
+			case 1: entropy[0] |= temp << 42; break;
+			case 2: entropy[0] |= temp << 31; break;
+			case 3: entropy[0] |= temp << 20; break;
+			case 4: entropy[0] |= temp << 9; break;
+			case 5:
+				entropy[0] |= temp >> 2;
+				entropy[1] |= temp << 62;
 				break;
+			case 6: entropy[1] |= temp << 51; break;
+			case 7: entropy[1] |= temp << 40; break;
+			case 8: entropy[1] |= temp << 29; break;
+			case 9: entropy[1] |= temp << 18; break;
+			case 10: entropy[1] |= temp << 7; break;
+			}
+		}
+		
+		uint8_t entropy_hash[32];
+		uint8_t bytes[16];
+		bytes[15] = entropy[1] & 0xFF;
+		bytes[14] = (entropy[1] >> 8) & 0xFF;
+		bytes[13] = (entropy[1] >> 16) & 0xFF;
+		bytes[12] = (entropy[1] >> 24) & 0xFF;
+		bytes[11] = (entropy[1] >> 32) & 0xFF;
+		bytes[10] = (entropy[1] >> 40) & 0xFF;
+		bytes[9] = (entropy[1] >> 48) & 0xFF;
+		bytes[8] = (entropy[1] >> 56) & 0xFF;
+
+		bytes[7] = entropy[0] & 0xFF;
+		bytes[6] = (entropy[0] >> 8) & 0xFF;
+		bytes[5] = (entropy[0] >> 16) & 0xFF;
+		bytes[4] = (entropy[0] >> 24) & 0xFF;
+		bytes[3] = (entropy[0] >> 32) & 0xFF;
+		bytes[2] = (entropy[0] >> 40) & 0xFF;
+		bytes[1] = (entropy[0] >> 48) & 0xFF;
+		bytes[0] = (entropy[0] >> 56) & 0xFF;
+		
+		sha256((uint32_t*)bytes, 16, (uint32_t*)entropy_hash);
+		uint8_t checksum = (entropy_hash[0] >> 4) & ((1 << 4) - 1);
+		int16_t checksum_word = ((entropy[1] & ((1 << 7) - 1)) << 4) | checksum;
+		
+		// Validate 12th word constraint if any
+		if (dev_candidate_counts[11] > 0) {
+			bool found = false;
+			for (int i = 0; i < dev_candidate_counts[11]; i++) {
+				if (dev_candidate_indices[11][i] == checksum_word) {
+					found = true;
+					break;
+				}
+			}
+			if (!found) {
+				// Invalid combination, set empty mnemonic
+				mnemonic_phrase[0] = 0;
+				return;
+			}
+		}
+		
+		indices[11] = checksum_word;
+	}
+	else {
+		// Legacy entropy-based enumeration mode
+		uint64_t entropy[2];
+		if (idx < NUM_ENTROPY_FRAME) {
+			entropy[0] = gl_entropy[0 + idx * 2];
+			entropy[1] = gl_entropy[1 + idx * 2];
+		}
+		else
+		{
+			entropy[0] = gl_entropy[0 + (idx % NUM_ENTROPY_FRAME) * 2];
+			entropy[1] = gl_entropy[1 + (idx % NUM_ENTROPY_FRAME) * 2];
+		}
+
+		entropy[1] += idx;
+		if (idx > entropy[1]) entropy[0]++;
+
+		for (int i = 0; i < 12; i++) if (dev_static_words_indices[i] != -1) indices[i] = dev_static_words_indices[i];
+		for (int i = 11, pos = 11; i >= 0; i--)
+		{
+			if (indices[i] == -1)
+			{
+				int16_t ind = 0;
+				switch (pos)
+				{
+				case 0: indices[i] = (entropy[0] >> 53) & 2047; break;
+				case 1: indices[i] = (entropy[0] >> 42) & 2047; break;
+				case 2: indices[i] = (entropy[0] >> 31) & 2047; break;
+				case 3: indices[i] = (entropy[0] >> 20) & 2047; break;
+				case 4: indices[i] = (entropy[0] >> 9) & 2047; break;
+				case 5: indices[i] = ((entropy[0] & ((1 << 9) - 1)) << 2) | ((entropy[1] >> 62) & 3); break;
+				case 6: indices[i] = (entropy[1] >> 51) & 2047; break;
+				case 7: indices[i] = (entropy[1] >> 40) & 2047; break;
+				case 8: indices[i] = (entropy[1] >> 29) & 2047; break;
+				case 9: indices[i] = (entropy[1] >> 18) & 2047; break;
+				case 10: indices[i] = (entropy[1] >> 7) & 2047; break;
+				case 11: indices[i] = ((entropy[1] & ((1 << 7) - 1)) << 4);
+					break;
+				default:
+					break;
+				}
+				pos--;
+			}
+		}
+
+		entropy[0] = 0; entropy[1] = 0;
+		for (int i = 0; i < 12; i++)
+		{
+			uint64_t temp = indices[i];
+			switch (i)
+			{
+			case 0: entropy[0] |= temp << 53; break;
+			case 1: entropy[0] |= temp << 42; break;
+			case 2: entropy[0] |= temp << 31; break;
+			case 3: entropy[0] |= temp << 20; break;
+			case 4: entropy[0] |= temp << 9; break;
+			case 5:
+				entropy[0] |= temp >> 2;
+				entropy[1] |= temp << 62;
+				break;
+			case 6: entropy[1] |= temp << 51; break;
+			case 7: entropy[1] |= temp << 40; break;
+			case 8: entropy[1] |= temp << 29; break;
+			case 9: entropy[1] |= temp << 18; break;
+			case 10: entropy[1] |= temp << 7; break;
+			case 11: entropy[1] |= temp >> 4; break;
 			default:
 				break;
 			}
-			pos--;
 		}
 
+		uint8_t entropy_hash[32];
+		uint8_t bytes[16];
+		bytes[15] = entropy[1] & 0xFF;
+		bytes[14] = (entropy[1] >> 8) & 0xFF;
+		bytes[13] = (entropy[1] >> 16) & 0xFF;
+		bytes[12] = (entropy[1] >> 24) & 0xFF;
+		bytes[11] = (entropy[1] >> 32) & 0xFF;
+		bytes[10] = (entropy[1] >> 40) & 0xFF;
+		bytes[9] = (entropy[1] >> 48) & 0xFF;
+		bytes[8] = (entropy[1] >> 56) & 0xFF;
+
+		bytes[7] = entropy[0] & 0xFF;
+		bytes[6] = (entropy[0] >> 8) & 0xFF;
+		bytes[5] = (entropy[0] >> 16) & 0xFF;
+		bytes[4] = (entropy[0] >> 24) & 0xFF;
+		bytes[3] = (entropy[0] >> 32) & 0xFF;
+		bytes[2] = (entropy[0] >> 40) & 0xFF;
+		bytes[1] = (entropy[0] >> 48) & 0xFF;
+		bytes[0] = (entropy[0] >> 56) & 0xFF;
+		sha256((uint32_t*)bytes, 16, (uint32_t*)entropy_hash);
+		uint8_t checksum = (entropy_hash[0] >> 4) & ((1 << 4) - 1);
+		indices[11] |= checksum;
 	}
-
-	entropy[0] = 0; entropy[1] = 0;
-	for (int i = 0; i < 12; i++)
-	{
-		uint64_t temp = indices[i];
-		switch (i)
-		{
-		case 0: entropy[0] |= temp << 53; break;
-		case 1: entropy[0] |= temp << 42; break;
-		case 2: entropy[0] |= temp << 31; break;
-		case 3: entropy[0] |= temp << 20; break;
-		case 4: entropy[0] |= temp << 9; break;
-		case 5:
-			entropy[0] |= temp >> 2;
-			entropy[1] |= temp << 62;
-			break;
-		case 6: entropy[1] |= temp << 51; break;
-		case 7: entropy[1] |= temp << 40; break;
-		case 8: entropy[1] |= temp << 29; break;
-		case 9: entropy[1] |= temp << 18; break;
-		case 10: entropy[1] |= temp << 7; break;
-		case 11: entropy[1] |= temp >> 4; break;
-		default:
-			break;
-		}
-	}
-
-	uint8_t entropy_hash[32];
-	uint8_t bytes[16];
-	bytes[15] = entropy[1] & 0xFF;
-	bytes[14] = (entropy[1] >> 8) & 0xFF;
-	bytes[13] = (entropy[1] >> 16) & 0xFF;
-	bytes[12] = (entropy[1] >> 24) & 0xFF;
-	bytes[11] = (entropy[1] >> 32) & 0xFF;
-	bytes[10] = (entropy[1] >> 40) & 0xFF;
-	bytes[9] = (entropy[1] >> 48) & 0xFF;
-	bytes[8] = (entropy[1] >> 56) & 0xFF;
-
-	bytes[7] = entropy[0] & 0xFF;
-	bytes[6] = (entropy[0] >> 8) & 0xFF;
-	bytes[5] = (entropy[0] >> 16) & 0xFF;
-	bytes[4] = (entropy[0] >> 24) & 0xFF;
-	bytes[3] = (entropy[0] >> 32) & 0xFF;
-	bytes[2] = (entropy[0] >> 40) & 0xFF;
-	bytes[1] = (entropy[0] >> 48) & 0xFF;
-	bytes[0] = (entropy[0] >> 56) & 0xFF;
-	sha256((uint32_t*)bytes, 16, (uint32_t*)entropy_hash);
-	uint8_t checksum = (entropy_hash[0] >> 4) & ((1 << 4) - 1);
-	indices[11] |= checksum;
 
 	int mnemonic_index = 0;
 
@@ -2925,7 +3010,6 @@ void entropy_to_mnemonic(const uint64_t* gl_entropy, uint8_t* mnemonic_phrase) {
 	}
 
 	mnemonic_phrase[mnemonic_index - 1] = 0;	//обязательно, убирает последний пробел
-
 }
 __device__ void int_to_mnemonic(const uint64_t mnemonic_hi, const uint64_t mnemonic_lo, uint8_t* mnemonic_phrase) {
 
@@ -3160,6 +3244,35 @@ __device__ void key_to_hash160(
 	//______________________________________________________________________________________________________________________
 	//______________________________________________________________________________________________________________________
 	//______________________________________________________________________________________________________________________
+	
+	if (dev_single_target_mode[0]) {
+		// Single target mode: derive only m/44'/60'/0'/0/2 and compare directly
+		normal_private_child_from_private(&master_private_fo_extint, &target_key, 0);
+		normal_private_child_from_private(&target_key, &target_key_fo_pub, 2);
+		calc_public(&target_key_fo_pub, &target_public_key);
+		calc_hash160((uint32_t*)&target_public_key, hash);
+		
+		// Direct comparison with target address
+		bool match = true;
+		for (int i = 0; i < 5; i++) {
+			if (hash[i] != *((uint32_t*)&dev_target_address[i * 4])) {
+				match = false;
+				break;
+			}
+		}
+		
+		if (match && ret->f[0].count_found < MAX_FOUND_ADDRESSES) {
+			foundInfoStruct* info = &ret->f[0].found_info[ret->f[0].count_found];
+			for (int i = 0; i < SIZE32_MNEMONIC_FRAME; i++) info->mnemonic[i] = mnemonic[i];
+			for (int i = 0; i < SIZE32_HASH160_FRAME; i++) info->hash160[i] = hash[i];
+			info->path = 0;
+			info->child = 2;
+			ret->f[0].count_found++;
+		}
+		return;
+	}
+	
+	// Original table-based mode
 	if (dev_generate_path[0] != 0) {
 		normal_private_child_from_private(&master_private_fo_extint, &target_key, 0);
 		//m/44'/60'/0'/0/x
