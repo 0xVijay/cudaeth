@@ -5,7 +5,7 @@
 NVCC = nvcc
 CXX = g++
 CXXFLAGS = -std=c++17 -O3 -Wall
-CUDAFLAGS = -O3 -arch=sm_60
+CUDAFLAGS = -O3 -arch=sm_70
 
 # Directories
 SRCDIR = .
