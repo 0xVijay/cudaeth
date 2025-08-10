@@ -1,0 +1,59 @@
+{
+  "wallet_type": "ethereum",
+  "mnemonic_length": 12,
+  "ethereum": {
+    "target_address": "0x543Bd35F52147370C0deCBd440863bc2a002C5c5",
+    "derivation_path": "m/44'/60'/0'/0/2",
+    "passphrase": ""
+  },
+  "word_constraints": [
+    {
+      "position": 0,
+      "words": ["frequent", "frame"]
+    },
+    {
+      "position": 1,
+      "words": ["lucky"]
+    },
+    {
+      "position": 2,
+      "words": ["inquiry", "impact", "inside"]
+    },
+    {
+      "position": 3,
+      "words": ["vendor"]
+    },
+    {
+      "position": 4,
+      "words": ["engine", "earth", "empty"]
+    },
+    {
+      "position": 5,
+      "words": ["dragon", "dream", "draft"]
+    },
+    {
+      "position": 6,
+      "words": ["horse", "heart", "heavy"]
+    },
+    {
+      "position": 7,
+      "words": ["gorilla"]
+    },
+    {
+      "position": 8,
+      "words": ["pear", "peace", "panic"]
+    },
+    {
+      "position": 9,
+      "words": ["old", "ocean", "olive"]
+    },
+    {
+      "position": 10,
+      "words": ["dance"]
+    },
+    {
+      "position": 11,
+      "words": ["shield"]
+    }
+  ]
+}
