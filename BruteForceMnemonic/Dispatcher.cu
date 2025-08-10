@@ -49,6 +49,7 @@ int Generate_Mnemonic(void)
 	cudaError_t cudaStatus = cudaSuccess;
 	int err;
 	ConfigClass Config;
+	uint32_t use_allowlists = 0; // Declare early to avoid goto bypass issues
 	try {
 		// Try config.json first, then fallback to config.cfg
 		try {
@@ -186,7 +187,7 @@ int Generate_Mnemonic(void)
 	}
 	
 	// Transfer new allowlist constants
-	uint32_t use_allowlists = Config.use_allowlists ? 1 : 0;
+	use_allowlists = Config.use_allowlists ? 1 : 0;
 	if (cudaMemcpyToSymbol(dev_use_allowlists, &use_allowlists, 4, 0, cudaMemcpyHostToDevice) != cudaSuccess)
 	{
 		std::cerr << "cudaMemcpyToSymbol to dev_use_allowlists failed!" << std::endl;
