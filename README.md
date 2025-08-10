@@ -23,6 +23,26 @@
 * ***"cuda_block": 256*** - настройка под видеокарту
 Кол-во генерируемых мнемоник за раунд равно cuda_grid*cuda_block
 
+## GPU Compatibility / Совместимость с GPU
+
+This version supports a comprehensive range of NVIDIA GPU architectures:
+
+### Supported GPU Series:
+- ✅ **GTX 10 Series** (Pascal): GTX 1060, 1070, 1080, 1080 Ti
+- ✅ **RTX 20 Series** (Turing): RTX 2060, 2070, 2080, 2080 Ti  
+- ✅ **RTX 30 Series** (Ampere): RTX 3060, 3070, 3080, 3090, 3090 Ti
+- ✅ **RTX 40 Series** (Ada Lovelace): RTX 4060, 4070, 4080, 4090
+- ✅ **RTX 50 Series** (Future): RTX 5080, 5090 (when available)
+- ✅ **Tesla/Quadro/Data Center**: V100, A100, H100, RTX A6000, etc.
+
+### Check Your GPU Compatibility:
+Run the GPU compatibility check script:
+```bash
+./gpu_check.sh
+```
+
+This script will detect your GPU and confirm if it's supported by the current build configuration.
+
 
 
 ## Описание
