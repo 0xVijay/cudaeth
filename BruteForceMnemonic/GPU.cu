@@ -2832,12 +2832,32 @@ void entropy_to_mnemonic(const uint64_t* gl_entropy, uint8_t* mnemonic_phrase) {
 		// Mixed-radix conversion for first 11 positions
 		for (int i = 0; i < 11; i++) {
 			uint16_t count = dev_candidate_counts[i];
+			
+			// Bounds checking: skip positions with no candidates
+			if (count == 0) {
+				// Invalid configuration, set empty mnemonic and return
+				mnemonic_phrase[0] = 0;
+				return;
+			}
+			
 			uint32_t digit = linear_idx % count;
 			linear_idx = linear_idx / count;
+			
+			// Bounds checking: ensure digit is within valid range
+			if (digit >= count) {
+				// Invalid combination, set empty mnemonic and return
+				mnemonic_phrase[0] = 0;
+				return;
+			}
+			
 			indices[i] = dev_candidate_indices[i][digit];
 		}
-		
-		// Compute checksum for 12th word
+		// Check if we have exhausted the combination space
+		if (linear_idx > 0) {
+			// This thread index exceeds total combinations, generate empty mnemonic
+			mnemonic_phrase[0] = 0;
+			return;
+		}
 		uint64_t entropy[2] = {0, 0};
 		for (int i = 0; i < 11; i++) {
 			uint64_t temp = indices[i];
@@ -3252,10 +3272,11 @@ __device__ void key_to_hash160(
 		calc_public(&target_key_fo_pub, &target_public_key);
 		calc_hash160((uint32_t*)&target_public_key, hash);
 		
-		// Direct comparison with target address
+		// Direct comparison with target address (handle byte order properly)
 		bool match = true;
-		for (int i = 0; i < 5; i++) {
-			if (hash[i] != *((uint32_t*)&dev_target_address[i * 4])) {
+		uint8_t* hash_bytes = (uint8_t*)hash;
+		for (int i = 0; i < 20; i++) {
+			if (hash_bytes[i] != dev_target_address[i]) {
 				match = false;
 				break;
 			}

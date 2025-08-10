@@ -194,6 +194,19 @@ int Generate_Mnemonic(void)
 	}
 	
 	if (Config.use_allowlists) {
+		// Validate allowlist data before GPU transfer
+		for (int i = 0; i < 12; i++) {
+			if (Config.candidate_counts[i] == 0) {
+				std::cerr << "Error: Position " << i << " has no candidate words" << std::endl;
+				goto Error;
+			}
+			if (Config.candidate_counts[i] > MAX_PER_POS) {
+				std::cerr << "Error: Position " << i << " has too many candidates (" 
+						  << Config.candidate_counts[i] << " > " << MAX_PER_POS << ")" << std::endl;
+				goto Error;
+			}
+		}
+		
 		if (cudaMemcpyToSymbol(dev_candidate_counts, &Config.candidate_counts, sizeof(Config.candidate_counts), 0, cudaMemcpyHostToDevice) != cudaSuccess)
 		{
 			std::cerr << "cudaMemcpyToSymbol to dev_candidate_counts failed!" << std::endl;
@@ -214,6 +227,19 @@ int Generate_Mnemonic(void)
 		}
 		
 		if (Config.single_target_mode) {
+			// Validate target address
+			bool all_zero = true;
+			for (int i = 0; i < 20; i++) {
+				if (Config.target_address_bytes[i] != 0) {
+					all_zero = false;
+					break;
+				}
+			}
+			if (all_zero) {
+				std::cerr << "Error: Target address is all zeros" << std::endl;
+				goto Error;
+			}
+			
 			if (cudaMemcpyToSymbol(dev_target_address, &Config.target_address_bytes, 20, 0, cudaMemcpyHostToDevice) != cudaSuccess)
 			{
 				std::cerr << "cudaMemcpyToSymbol to dev_target_address failed!" << std::endl;
