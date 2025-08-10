@@ -43,6 +43,33 @@ Run the GPU compatibility check script:
 
 This script will detect your GPU and confirm if it's supported by the current build configuration.
 
+## Docker Environment Support
+
+This version includes enhanced support for Docker environments, particularly the vastai/base-image:
+
+### Key Features:
+- **Automatic NVCC Path Detection**: Automatically detects `/usr/local/cuda/bin/nvcc` in Docker environments
+- **Warning Suppression**: Includes `-diag-suppress 20044` to suppress extern constant declaration warnings
+- **Cross-platform Memory Allocation**: Uses `posix_memalign()` on Linux and `_aligned_malloc()` on Windows
+
+### Troubleshooting Compilation Warnings:
+
+If you encounter warnings like:
+```
+warning #20044-D: extern declaration of the entity dev_xxx is treated as a static definition
+```
+
+These warnings are automatically suppressed with the `-diag-suppress 20044` flag in the Makefile. The warnings are cosmetic and don't affect functionality.
+
+### Usage in Docker:
+```bash
+# Verify environment compatibility
+./compile_test.sh
+
+# Build the project
+make clean && make
+```
+
 
 
 ## Описание
