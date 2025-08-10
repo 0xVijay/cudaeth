@@ -10,6 +10,7 @@
 #pragma once
 #include <string>
 #include <vector>
+#include <cstdint>
 
 #define MAX_PER_POS 128
 

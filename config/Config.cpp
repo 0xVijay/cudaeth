@@ -9,6 +9,8 @@
   */
 #include "Config.hpp"
 #include <tao/config.hpp>
+#include <iostream>
+#include <cstring>
 #include "../Tools/tools.h"
 
 int check_config(ConfigClass& config)
