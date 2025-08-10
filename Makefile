@@ -5,7 +5,7 @@
 NVCC = nvcc
 CXX = g++
 CXXFLAGS = -std=c++17 -O3 -Wall
-CUDAFLAGS = -O3 -arch=sm_70
+CUDAFLAGS = -O3 -Wno-deprecated-gpu-targets --generate-code arch=compute_50,code=sm_50 --generate-code arch=compute_60,code=sm_60 --generate-code arch=compute_70,code=sm_70 --generate-code arch=compute_75,code=sm_75 --generate-code arch=compute_80,code=sm_80 --generate-code arch=compute_86,code=sm_86
 
 # Directories
 SRCDIR = .
@@ -37,11 +37,11 @@ $(BUILDDIR):
 
 # Compile CUDA files
 $(OBJDIR)/%.o: %.cu | $(BUILDDIR)
-	$(NVCC) $(CUDAFLAGS) -c $< -o $@ -I$(SRCDIR)
+	$(NVCC) $(CUDAFLAGS) -c $< -o $@ -I$(SRCDIR) -I$(SRCDIR)/BruteForceMnemonic
 
 # Compile C++ files
 $(OBJDIR)/%.o: %.cpp | $(BUILDDIR)
-	$(CXX) $(CXXFLAGS) -c $< -o $@ -I$(SRCDIR)
+	$(CXX) $(CXXFLAGS) -c $< -o $@ -I$(SRCDIR) -I$(SRCDIR)/BruteForceMnemonic
 
 # Link everything together
 $(TARGET): $(CUDA_OBJECTS) $(CXX_OBJECTS) | $(BUILDDIR)
