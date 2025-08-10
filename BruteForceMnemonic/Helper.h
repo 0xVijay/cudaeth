@@ -26,10 +26,35 @@
 #include "cuda_runtime.h"
 #include "device_launch_parameters.h"
 
+// Cross-platform memory alignment support
+#ifdef _WIN32
+    #include <malloc.h>  // For _aligned_malloc and _aligned_free on Windows
+#else
+    #include <stdlib.h>  // For posix_memalign and free on Linux/Unix
+    #include <cstdlib>
+#endif
+
 #include "stdafx.h"
 #include "../Tools/utils.h"
 
+// Cross-platform aligned memory allocation wrapper functions
+inline void* cross_platform_aligned_malloc(size_t size, size_t alignment) {
+#ifdef _WIN32
+    return _aligned_malloc(size, alignment);
+#else
+    void* ptr = nullptr;
+    int result = posix_memalign(&ptr, alignment, size);
+    return (result == 0) ? ptr : nullptr;
+#endif
+}
 
+inline void cross_platform_aligned_free(void* ptr) {
+#ifdef _WIN32
+    _aligned_free(ptr);
+#else
+    free(ptr);
+#endif
+}
 
 class host_buffers_class
 {
@@ -46,8 +71,8 @@ public:
 	}
 
 	int alignedMalloc(void** point, uint64_t size, uint64_t* all_ram_memory_size, std::string buff_name) {
-		*point = _aligned_malloc(size, 4096);
-		if (NULL == *point) { fprintf(stderr, "_aligned_malloc (%s) failed! Size: %s", buff_name.c_str(), tools::formatWithCommas(size).data()); return 1; }
+		*point = cross_platform_aligned_malloc(size, 4096);
+		if (NULL == *point) { fprintf(stderr, "cross_platform_aligned_malloc (%s) failed! Size: %s", buff_name.c_str(), tools::formatWithCommas(size).data()); return 1; }
 		*all_ram_memory_size += size;
 		//std::cout << "MALLOC RAM MEMORY SIZE (" << buff_name << "): " << std::to_string((float)size / (1024.0f * 1024.0f)) << " MB\n";
 		return 0;
@@ -85,7 +110,7 @@ public:
 		cudaFreeHost(entropy);
 		cudaFreeHost(ret);
 		//for CPU
-		_aligned_free(save);
+		cross_platform_aligned_free(save);
 
 	}
 
