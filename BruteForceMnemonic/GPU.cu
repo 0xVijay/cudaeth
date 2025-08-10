@@ -461,7 +461,7 @@ static void md_pad_128_swap(uint64_t* msg, const long msgLen_bytes) {
 
 __device__
 static void sha512_swap(uint64_t* input, const uint32_t length, uint64_t* hash) {
-	md_pad_128_swap(input, (const uint64_t)length);
+	md_pad_128_swap(input, (long)length);
 	uint64_t W[80];
 	uint64_t State[8];
 
@@ -531,7 +531,7 @@ static void sha512_swap(uint64_t* input, const uint32_t length, uint64_t* hash) 
 
 __device__
 static void sha512(uint64_t* input, const uint32_t length, uint64_t* hash) {
-	md_pad_128(input, (const uint64_t)length);
+	md_pad_128(input, (long)length);
 	uint64_t W[80];
 	uint64_t State[8];
 

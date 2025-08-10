@@ -5,7 +5,7 @@
 NVCC = $(shell [ -f /usr/local/cuda/bin/nvcc ] && echo /usr/local/cuda/bin/nvcc || echo nvcc)
 CXX = g++
 CXXFLAGS = -std=c++17 -O3 -Wall
-CUDAFLAGS = -O3 -Wno-deprecated-gpu-targets -diag-suppress 20044 \
+CUDAFLAGS = -O3 -Wno-deprecated-gpu-targets -diag-suppress 20044 -diag-suppress 191 \
   --generate-code arch=compute_50,code=sm_50 \
   --generate-code arch=compute_60,code=sm_60 \
   --generate-code arch=compute_61,code=sm_61 \
