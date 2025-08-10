@@ -141,7 +141,7 @@ typedef union {
 __device__
 void sha3_keccakf(ethhash* const h)
 {
-	uint64_t* const st = (uint64_t* const)&h->q;
+	uint64_t* const st = (uint64_t*)&h->q;
 	h->d[33] ^= 0x80000000;
 	uint64_t t0, t1, t2, t3, t4;
 
