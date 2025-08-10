@@ -1,8 +1,8 @@
 # Cross-platform Makefile for BruteForceMnemonic
 # Usage: make (Linux/macOS) or make -f Makefile (Windows with MinGW)
 
-# Compiler settings
-NVCC = nvcc
+# Compiler settings - Use full path for Docker environments, fallback to system PATH
+NVCC = $(shell which /usr/local/cuda/bin/nvcc 2>/dev/null || which nvcc)
 CXX = g++
 CXXFLAGS = -std=c++17 -O3 -Wall
 CUDAFLAGS = -O3 -Wno-deprecated-gpu-targets --generate-code arch=compute_50,code=sm_50 --generate-code arch=compute_60,code=sm_60 --generate-code arch=compute_70,code=sm_70 --generate-code arch=compute_75,code=sm_75 --generate-code arch=compute_80,code=sm_80 --generate-code arch=compute_86,code=sm_86 --generate-code arch=compute_89,code=sm_89 --generate-code arch=compute_90,code=sm_90
