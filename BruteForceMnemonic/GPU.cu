@@ -12,6 +12,8 @@
 #include <cstddef>
 #include <stdio.h>
 
+// Define CUDA constants in this compilation unit only
+#define DEFINING_CUDA_CONSTANTS
 
 #include "cuda_runtime.h"
 #include "device_launch_parameters.h"

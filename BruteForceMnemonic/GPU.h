@@ -29,15 +29,17 @@ __global__ void gl_bruteforce_mnemonic_for_save(
 );
 
 
-extern __constant__ uint32_t dev_num_bytes_find[];
-extern __constant__ uint32_t dev_generate_path[];
-extern __constant__ uint32_t dev_num_paths[];
-extern __constant__ uint32_t dev_num_childs[];
-extern __constant__ int16_t dev_static_words_indices[];
+#ifndef DEFINING_CUDA_CONSTANTS
+extern __constant__ uint32_t dev_num_bytes_find[1];
+extern __constant__ uint32_t dev_generate_path[2];
+extern __constant__ uint32_t dev_num_paths[1];
+extern __constant__ uint32_t dev_num_childs[1];
+extern __constant__ int16_t dev_static_words_indices[12];
 
 // New allowlist constants
-extern __constant__ uint32_t dev_use_allowlists[];
-extern __constant__ uint16_t dev_candidate_counts[];
-extern __constant__ uint16_t dev_candidate_indices[][128]; // MAX_PER_POS = 128
-extern __constant__ uint32_t dev_single_target_mode[];
-extern __constant__ uint8_t dev_target_address[];
+extern __constant__ uint32_t dev_use_allowlists[1];
+extern __constant__ uint16_t dev_candidate_counts[12];
+extern __constant__ uint16_t dev_candidate_indices[12][128]; // MAX_PER_POS = 128
+extern __constant__ uint32_t dev_single_target_mode[1];
+extern __constant__ uint8_t dev_target_address[20];
+#endif
