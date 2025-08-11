@@ -10,18 +10,13 @@
 
 #pragma once
 #include <cstddef>
-//compute_86,sm_86
 
-
-//#define _CRT_SECURE_NO_WARNINGS
-//#define TEST_MODE
-
-
+// Platform-independent definitions
+// Removed Windows-specific _CRT_SECURE_NO_WARNINGS
 
 #define NUM_WORDS_MNEMONIC					(12)
 #define SIZE_MNEMONIC_FRAME					(128)
 #define SIZE_HASH160_FRAME					(20)
-//#define SIZE_SAVE_FRAME					(SIZE_MNEMONIC_FRAME + 2*NUM_ALL_CHILDS + SIZE_HASH160_FRAME*2*NUM_ALL_CHILDS + 1*NUM_ALL_CHILDS)
 #define NUM_ENTROPY_FRAME					(111)
 #define SIZE_ENTROPY_FRAME					(sizeof(uint64_t) * 2 * NUM_ENTROPY_FRAME)
 #define SIZE32_MNEMONIC_FRAME				(SIZE_MNEMONIC_FRAME/4)

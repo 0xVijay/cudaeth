@@ -9,8 +9,21 @@
   */
 #pragma once
 #include <string>
+#include <vector>
+#include <cstdint>
 
+#define MAX_PER_POS 128
 
+struct WordConstraint {
+	int position;
+	std::vector<std::string> words;
+};
+
+struct EthereumSettings {
+	std::string target_address = "";
+	std::string derivation_path = "";
+	std::string passphrase = "";
+};
 
 struct ConfigClass
 {
@@ -34,6 +47,20 @@ public:
 
 	uint64_t cuda_grid = 0;
 	uint64_t cuda_block = 0;
+	
+	// New allowlist mode fields
+	std::string wallet_type = "";
+	uint32_t mnemonic_length = 12;
+	EthereumSettings ethereum;
+	std::vector<WordConstraint> word_constraints;
+	
+	// Processed allowlist data
+	uint16_t candidate_counts[12] = { 0 };
+	uint16_t candidate_indices[12][MAX_PER_POS] = { 0 };
+	uint8_t target_address_bytes[20] = { 0 };
+	bool use_allowlists = false;
+	bool single_target_mode = false;
+	uint64_t total_combinations = 0;
 public:
 	ConfigClass()
 	{

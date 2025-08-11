@@ -1,4 +1,4 @@
-﻿/**
+/**
   ******************************************************************************
   * @author		Anton Houzich
   * @version	V2.0.0
@@ -9,7 +9,9 @@
   */
 
 
-#include <stdafx.h>
+// Removed stdafx.h for platform independence
+#include <cstdint>
+#include <cstddef>
 
 #include <iostream>
 #include <chrono>
@@ -49,14 +51,25 @@ int Generate_Mnemonic(void)
 	cudaError_t cudaStatus = cudaSuccess;
 	int err;
 	ConfigClass Config;
+	uint32_t use_allowlists = 0; // Declare early to avoid goto bypass issues
 	try {
-		parse_config(&Config, "config.cfg");
-		err = tools::stringToWordIndices(Config.static_words_generate_mnemonic + " ?", Config.words_indicies_mnemonic);
-		if (err != 0)
-		{
-			std::cerr << "Error stringToWordIndices()!" << std::endl;
-			return -1;
+		// Try config.json first, then fallback to config.cfg
+		try {
+			parse_config(&Config, "config.json");
+		} catch (...) {
+			parse_config(&Config, "config.cfg");
 		}
+		
+		// Only process static words for legacy mode
+		if (!Config.use_allowlists) {
+			err = tools::stringToWordIndices(Config.static_words_generate_mnemonic + " ?", Config.words_indicies_mnemonic);
+			if (err != 0)
+			{
+				std::cerr << "Error stringToWordIndices()!" << std::endl;
+				return -1;
+			}
+		}
+		
 		uint64_t number_of_generated_mnemonics = (Config.number_of_generated_mnemonics / (Config.cuda_block * Config.cuda_grid)) * (Config.cuda_block * Config.cuda_grid);
 		if ((Config.number_of_generated_mnemonics % (Config.cuda_block * Config.cuda_grid)) != 0) number_of_generated_mnemonics += Config.cuda_block * Config.cuda_grid;
 		Config.number_of_generated_mnemonics = number_of_generated_mnemonics;
@@ -100,17 +113,29 @@ int Generate_Mnemonic(void)
 	KernelStrideClass* Stride = new KernelStrideClass(Data);
 	size_t num_addresses_in_tables = 0;
 
-	std::cout << "READ TABLES! WAIT..." << std::endl;
-	tools::clearFiles();
-	err = tools::readAllTables(Data->host.tables, Config.folder_tables, "", &num_addresses_in_tables);
-	if (err == -1) {
-		std::cerr << "Error readAllTables!" << std::endl;
-		goto Error;
-	}
+	if (Config.use_allowlists && Config.single_target_mode) {
+		// New mode: skip reading tables, set minimal values to avoid errors
+		num_addresses_in_tables = 1;
+		std::cout << "ALLOWLIST MODE: Skipping table loading, using single target comparison" << std::endl;
+		
+		// Set path configuration for new mode (m/44'/60'/0'/0/x with child 2 only)
+		Config.generate_path[0] = 1;
+		Config.generate_path[1] = 0;
+		Config.num_child_addresses = 3; // Need 0,1,2 to get child 2
+		Config.num_paths = 1;
+	} else {
+		std::cout << "READ TABLES! WAIT..." << std::endl;
+		tools::clearFiles();
+		err = tools::readAllTables(Data->host.tables, Config.folder_tables, "", &num_addresses_in_tables);
+		if (err == -1) {
+			std::cerr << "Error readAllTables!" << std::endl;
+			goto Error;
+		}
 
-	if (num_addresses_in_tables == 0) {
-		std::cerr << "ERROR READ TABLES!! NO ADDRESSES IN FILES!!" << std::endl;
-		goto Error;
+		if (num_addresses_in_tables == 0) {
+			std::cerr << "ERROR READ TABLES!! NO ADDRESSES IN FILES!!" << std::endl;
+			goto Error;
+		}
 	}
 
 	if (Data->malloc(Config.cuda_grid, Config.cuda_block, Config.num_paths, Config.num_child_addresses, Config.save_generation_result_in_file == "yes" ? true : false) != 0) {
@@ -127,8 +152,12 @@ int Generate_Mnemonic(void)
 
 	std::cout << "START GENERATE ADDRESSES!" << std::endl;
 	std::cout << "PATH: " << std::endl;
-	if (Config.generate_path[0] != 0) std::cout << "m/44'/60'/0'/0/0.." << (Config.num_child_addresses - 1) << std::endl;
-	if (Config.generate_path[1] != 0) std::cout << "m/44'/60'/0'/1/0.." << (Config.num_child_addresses - 1) << std::endl;
+	if (Config.use_allowlists && Config.single_target_mode) {
+		std::cout << "m/44'/60'/0'/0/2 (single target mode)" << std::endl;
+	} else {
+		if (Config.generate_path[0] != 0) std::cout << "m/44'/60'/0'/0/0.." << (Config.num_child_addresses - 1) << std::endl;
+		if (Config.generate_path[1] != 0) std::cout << "m/44'/60'/0'/1/0.." << (Config.num_child_addresses - 1) << std::endl;
+	}
 
 	std::cout << "\nGENERATE " << tools::formatWithCommas(Config.number_of_generated_mnemonics) << " MNEMONICS. " << tools::formatWithCommas(Config.number_of_generated_mnemonics * Data->num_all_childs) << " ADDRESSES. MNEMONICS IN ROUNDS " << tools::formatWithCommas(Data->wallets_in_round_gpu) << ". WAIT...\n\n";
 
@@ -157,6 +186,69 @@ int Generate_Mnemonic(void)
 	{
 		std::cerr << "cudaMemcpyToSymbol to dev_gen_words_indices failed!" << std::endl;
 		goto Error;
+	}
+	
+	// Transfer new allowlist constants
+	use_allowlists = Config.use_allowlists ? 1 : 0;
+	if (cudaMemcpyToSymbol(dev_use_allowlists, &use_allowlists, 4, 0, cudaMemcpyHostToDevice) != cudaSuccess)
+	{
+		std::cerr << "cudaMemcpyToSymbol to dev_use_allowlists failed!" << std::endl;
+		goto Error;
+	}
+	
+	if (Config.use_allowlists) {
+		// Validate allowlist data before GPU transfer
+		for (int i = 0; i < 12; i++) {
+			if (Config.candidate_counts[i] == 0) {
+				std::cerr << "Error: Position " << i << " has no candidate words" << std::endl;
+				goto Error;
+			}
+			if (Config.candidate_counts[i] > MAX_PER_POS) {
+				std::cerr << "Error: Position " << i << " has too many candidates (" 
+						  << Config.candidate_counts[i] << " > " << MAX_PER_POS << ")" << std::endl;
+				goto Error;
+			}
+		}
+		
+		if (cudaMemcpyToSymbol(dev_candidate_counts, &Config.candidate_counts, sizeof(Config.candidate_counts), 0, cudaMemcpyHostToDevice) != cudaSuccess)
+		{
+			std::cerr << "cudaMemcpyToSymbol to dev_candidate_counts failed!" << std::endl;
+			goto Error;
+		}
+		
+		if (cudaMemcpyToSymbol(dev_candidate_indices, &Config.candidate_indices, sizeof(Config.candidate_indices), 0, cudaMemcpyHostToDevice) != cudaSuccess)
+		{
+			std::cerr << "cudaMemcpyToSymbol to dev_candidate_indices failed!" << std::endl;
+			goto Error;
+		}
+		
+		uint32_t single_target = Config.single_target_mode ? 1 : 0;
+		if (cudaMemcpyToSymbol(dev_single_target_mode, &single_target, 4, 0, cudaMemcpyHostToDevice) != cudaSuccess)
+		{
+			std::cerr << "cudaMemcpyToSymbol to dev_single_target_mode failed!" << std::endl;
+			goto Error;
+		}
+		
+		if (Config.single_target_mode) {
+			// Validate target address
+			bool all_zero = true;
+			for (int i = 0; i < 20; i++) {
+				if (Config.target_address_bytes[i] != 0) {
+					all_zero = false;
+					break;
+				}
+			}
+			if (all_zero) {
+				std::cerr << "Error: Target address is all zeros" << std::endl;
+				goto Error;
+			}
+			
+			if (cudaMemcpyToSymbol(dev_target_address, &Config.target_address_bytes, 20, 0, cudaMemcpyHostToDevice) != cudaSuccess)
+			{
+				std::cerr << "cudaMemcpyToSymbol to dev_target_address failed!" << std::endl;
+				goto Error;
+			}
+		}
 	}
 
 	for (size_t step = 0; step < Config.number_of_generated_mnemonics / (Data->wallets_in_round_gpu); step++)

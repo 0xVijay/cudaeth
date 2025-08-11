@@ -11,6 +11,8 @@
 #include <vector>
 #include <string>
 #include "../BruteForceMnemonic/stdafx.h"
+#include "../config/Config.hpp"
+
 namespace tools {
 
 	void generateRandomUint64Buffer(uint64_t* buff, size_t len);
@@ -20,4 +22,8 @@ namespace tools {
 	void saveResult(char* data, size_t len);
 	int checkResult(retStruct* ret);
 	int stringToWordIndices(std::string str, int16_t* gen_words_indices);
+	
+	// New allowlist functions
+	int validateAndProcessWordConstraints(ConfigClass* config);
+	int hexStringToBytes(const std::string& hex, uint8_t* bytes, size_t len);
 }

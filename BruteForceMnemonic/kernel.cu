@@ -1,4 +1,4 @@
-﻿/**
+/**
   ******************************************************************************
   * @author		Anton Houzich
   * @version	V2.0.0
@@ -7,13 +7,15 @@
   * discussion  https://t.me/BRUTE_FORCE_CRYPTO_WALLET
   ******************************************************************************
   */
-#include <stdafx.h>
+// Removed stdafx.h for platform independence
+#include <cstdint>
+#include <cstddef>
 
 #include "cuda_runtime.h"
 #include "device_launch_parameters.h"
 
 #include <stdio.h>
-//#include <synchapi.h>
+// Removed synchapi.h (Windows-specific)
 
 #include <Dispatcher.h>
 #include <thread>

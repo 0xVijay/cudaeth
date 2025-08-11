@@ -23,6 +23,53 @@
 * ***"cuda_block": 256*** - настройка под видеокарту
 Кол-во генерируемых мнемоник за раунд равно cuda_grid*cuda_block
 
+## GPU Compatibility / Совместимость с GPU
+
+This version supports a comprehensive range of NVIDIA GPU architectures:
+
+### Supported GPU Series:
+- ✅ **GTX 10 Series** (Pascal): GTX 1060, 1070, 1080, 1080 Ti
+- ✅ **RTX 20 Series** (Turing): RTX 2060, 2070, 2080, 2080 Ti  
+- ✅ **RTX 30 Series** (Ampere): RTX 3060, 3070, 3080, 3090, 3090 Ti
+- ✅ **RTX 40 Series** (Ada Lovelace): RTX 4060, 4070, 4080, 4090
+- ✅ **RTX 50 Series** (Future): RTX 5080, 5090 (when available)
+- ✅ **Tesla/Quadro/Data Center**: V100, A100, H100, RTX A6000, etc.
+
+### Check Your GPU Compatibility:
+Run the GPU compatibility check script:
+```bash
+./gpu_check.sh
+```
+
+This script will detect your GPU and confirm if it's supported by the current build configuration.
+
+## Docker Environment Support
+
+This version includes enhanced support for Docker environments, particularly the vastai/base-image:
+
+### Key Features:
+- **Automatic NVCC Path Detection**: Automatically detects `/usr/local/cuda/bin/nvcc` in Docker environments
+- **Warning Suppression**: Includes `-diag-suppress 20044` to suppress extern constant declaration warnings
+- **Cross-platform Memory Allocation**: Uses `posix_memalign()` on Linux and `_aligned_malloc()` on Windows
+
+### Troubleshooting Compilation Warnings:
+
+If you encounter warnings like:
+```
+warning #20044-D: extern declaration of the entity dev_xxx is treated as a static definition
+```
+
+These warnings are automatically suppressed with the `-diag-suppress 20044` flag in the Makefile. The warnings are cosmetic and don't affect functionality.
+
+### Usage in Docker:
+```bash
+# Verify environment compatibility
+./compile_test.sh
+
+# Build the project
+make clean && make
+```
+
 
 
 ## Описание
