@@ -2944,7 +2944,6 @@ void entropy_to_mnemonic(const uint64_t* gl_entropy, uint8_t* mnemonic_phrase) {
 		{
 			if (indices[i] == -1)
 			{
-				int16_t ind = 0;
 				switch (pos)
 				{
 				case 0: indices[i] = (entropy[0] >> 53) & 2047; break;
