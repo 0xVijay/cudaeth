@@ -5,7 +5,7 @@
 NVCC = $(shell if [ -f /usr/local/cuda/bin/nvcc ]; then echo /usr/local/cuda/bin/nvcc; elif command -v nvcc >/dev/null 2>&1; then echo nvcc; else echo "echo 'NVCC not found'"; fi)
 CXX = g++
 CXXFLAGS = -std=c++17 -O3 -Wall
-CUDAFLAGS = -O3 -Wno-deprecated-gpu-targets -diag-suppress 20044 -diag-suppress 191 \
+CUDAFLAGS = -O3 -Wno-deprecated-gpu-targets -diag-suppress 20044 -diag-suppress 191 -diag-suppress 177 \
   --generate-code arch=compute_50,code=sm_50 \
   --generate-code arch=compute_60,code=sm_60 \
   --generate-code arch=compute_61,code=sm_61 \
