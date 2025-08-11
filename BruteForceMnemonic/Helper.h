@@ -26,34 +26,22 @@
 #include "cuda_runtime.h"
 #include "device_launch_parameters.h"
 
-// Cross-platform memory alignment support
-#ifdef _WIN32
-    #include <malloc.h>  // For _aligned_malloc and _aligned_free on Windows
-#else
-    #include <stdlib.h>  // For posix_memalign and free on Linux/Unix
-    #include <cstdlib>
-#endif
+// Platform-independent memory alignment support - Linux/Unix only
+#include <stdlib.h>  // For posix_memalign and free
+#include <cstdlib>
 
-#include "stdafx.h"
+// Removed stdafx.h include for platform independence
 #include "../Tools/utils.h"
 
-// Cross-platform aligned memory allocation wrapper functions
+// Platform-independent aligned memory allocation - Linux/Unix only
 inline void* cross_platform_aligned_malloc(size_t size, size_t alignment) {
-#ifdef _WIN32
-    return _aligned_malloc(size, alignment);
-#else
     void* ptr = nullptr;
     int result = posix_memalign(&ptr, alignment, size);
     return (result == 0) ? ptr : nullptr;
-#endif
 }
 
 inline void cross_platform_aligned_free(void* ptr) {
-#ifdef _WIN32
-    _aligned_free(ptr);
-#else
     free(ptr);
-#endif
 }
 
 class host_buffers_class

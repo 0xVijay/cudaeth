@@ -10,7 +10,7 @@
 #pragma once
 
 #include <stdint.h>
-#include "stdafx.h"
+// Removed stdafx.h include for platform independence
 #include "cuda_runtime.h"
 #include "device_launch_parameters.h"
 

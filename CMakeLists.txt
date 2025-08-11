@@ -13,8 +13,17 @@ include_directories(${CUDA_INCLUDE_DIRS})
 include_directories(${CMAKE_SOURCE_DIR}/config)
 include_directories(${CMAKE_SOURCE_DIR}/Tools)
 
-# CUDA compilation flags
-set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS};-O3;-arch=sm_60)
+# CUDA compilation flags - Platform-independent multi-GPU support
+set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS};-O3;-Wno-deprecated-gpu-targets;
+  --generate-code arch=compute_50,code=sm_50;
+  --generate-code arch=compute_60,code=sm_60;
+  --generate-code arch=compute_61,code=sm_61;
+  --generate-code arch=compute_70,code=sm_70;
+  --generate-code arch=compute_75,code=sm_75;
+  --generate-code arch=compute_80,code=sm_80;
+  --generate-code arch=compute_86,code=sm_86;
+  --generate-code arch=compute_89,code=sm_89;
+  --generate-code arch=compute_90,code=sm_90)
 
 # Source files
 set(CUDA_SOURCES

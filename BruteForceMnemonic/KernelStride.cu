@@ -1,4 +1,4 @@
-﻿/**
+/**
   ******************************************************************************
   * @author		Anton Houzich
   * @version	V2.0.0
@@ -7,7 +7,9 @@
   * discussion  https://t.me/BRUTE_FORCE_CRYPTO_WALLET
   ******************************************************************************
   */
-#include <stdafx.h>
+// Removed stdafx.h for platform independence
+#include <cstdint>
+#include <cstddef>
 #include <stdio.h>
 #include <stdint.h>
 

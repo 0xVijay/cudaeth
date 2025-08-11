@@ -1,4 +1,4 @@
-﻿/**
+/**
   ******************************************************************************
   * @author		Anton Houzich
   * @version	V2.0.0
@@ -8,7 +8,9 @@
   ******************************************************************************
   */
 
-#include <stdafx.h>
+// Removed stdafx.h for platform independence
+#include <cstdint>
+#include <cstddef>
 #include "cuda_runtime.h"
 #include "device_launch_parameters.h"
 

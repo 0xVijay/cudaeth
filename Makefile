@@ -1,8 +1,8 @@
 # Cross-platform Makefile for BruteForceMnemonic
-# Usage: make (Linux/macOS) or make -f Makefile (Windows with MinGW)
+# Usage: make (Linux/macOS/Unix)
 
-# Compiler settings - Docker-compatible NVCC path detection
-NVCC = $(shell [ -f /usr/local/cuda/bin/nvcc ] && echo /usr/local/cuda/bin/nvcc || echo nvcc)
+# Compiler settings - Platform-independent NVCC path detection
+NVCC = $(shell if [ -f /usr/local/cuda/bin/nvcc ]; then echo /usr/local/cuda/bin/nvcc; elif command -v nvcc >/dev/null 2>&1; then echo nvcc; else echo "echo 'NVCC not found'"; fi)
 CXX = g++
 CXXFLAGS = -std=c++17 -O3 -Wall
 CUDAFLAGS = -O3 -Wno-deprecated-gpu-targets -diag-suppress 20044 -diag-suppress 191 \

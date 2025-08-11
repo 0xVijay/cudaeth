@@ -9,7 +9,9 @@
   */
 
 
-#include <stdafx.h>
+// Removed stdafx.h for platform independence
+#include <cstdint>
+#include <cstddef>
 
 #include <iostream>
 #include <chrono>
