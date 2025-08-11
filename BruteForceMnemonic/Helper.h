@@ -22,6 +22,7 @@
 #include <vector>
 #include <map>
 #include <omp.h>
+#include "stdafx.h"
 
 #include "cuda_runtime.h"
 #include "device_launch_parameters.h"
